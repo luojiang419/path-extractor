@@ -1,0 +1,136 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    env:
+      FLUTTER_VERSION: 3.38.4
+      MINIMUM_SUPPORTED_VERSION: 1.0.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Resolve release variables
+        shell: pwsh
+        run: |
+          $versionLine = Get-Content path_extractor_browser/pubspec.yaml | Where-Object { $_ -match '^version:\s*' } | Select-Object -First 1
+          if (-not $versionLine) {
+            throw "未在 pubspec.yaml 中找到 version 字段"
+          }
+
+          $versionValue = ($versionLine -replace '^version:\s*', '').Trim()
+          $parts = $versionValue.Split('+', 2)
+          $appVersion = $parts[0]
+          $appBuild = if ($parts.Length -gt 1) { $parts[1] } else { '0' }
+          $releaseTag = $env:GITHUB_REF_NAME
+          if ($releaseTag -ne "v$appVersion") {
+            throw "Tag $releaseTag 与 pubspec 版本 $appVersion 不一致"
+          }
+
+          $installerName = "路径提取器-安装包-$appVersion.exe"
+          $installerNameEncoded = [System.Uri]::EscapeDataString($installerName)
+          $installerUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$releaseTag/$installerNameEncoded"
+
+          Add-Content $env:GITHUB_ENV "APP_VERSION=$appVersion"
+          Add-Content $env:GITHUB_ENV "APP_BUILD=$appBuild"
+          Add-Content $env:GITHUB_ENV "RELEASE_TAG=$releaseTag"
+          Add-Content $env:GITHUB_ENV "INSTALLER_NAME=$installerName"
+          Add-Content $env:GITHUB_ENV "INSTALLER_URL=$installerUrl"
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          Set-Location path_extractor_browser
+          flutter pub get
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          Set-Location path_extractor_browser
+          flutter test
+
+      - name: Build Windows release
+        shell: pwsh
+        run: |
+          Set-Location path_extractor_browser
+          flutter build windows --release --build-name $env:APP_VERSION --build-number $env:APP_BUILD
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          Set-Location installer
+          .\build_installer.ps1
+
+      - name: Generate release assets
+        shell: pwsh
+        run: |
+          $installerPath = Join-Path 'installer_output' $env:INSTALLER_NAME
+          if (-not (Test-Path $installerPath)) {
+            throw "找不到安装包：$installerPath"
+          }
+
+          $previousTag = git tag --sort=-version:refname | Where-Object { $_ -ne $env:RELEASE_TAG } | Select-Object -First 1
+          if ($previousTag) {
+            $notes = git log "$previousTag..HEAD" --pretty=format:"- %s"
+          } else {
+            $notes = git log --pretty=format:"- %s"
+          }
+          if ([string]::IsNullOrWhiteSpace($notes)) {
+            $notes = '初始发布'
+          }
+          Set-Content -Path release-notes.md -Value $notes -Encoding utf8
+
+          $installerSha = (Get-FileHash $installerPath -Algorithm SHA256).Hash.ToLower()
+          $publishedAt = (Get-Date).ToUniversalTime().ToString('o')
+          $manifest = [ordered]@{
+            version = $env:APP_VERSION
+            build = [int]$env:APP_BUILD
+            published_at = $publishedAt
+            notes = $notes
+            installer_name = $env:INSTALLER_NAME
+            installer_url = $env:INSTALLER_URL
+            installer_sha256 = $installerSha
+            minimum_supported_version = $env:MINIMUM_SUPPORTED_VERSION
+          }
+          $manifest | ConvertTo-Json | Set-Content -Path latest.json -Encoding utf8
+
+          $manifestSha = (Get-FileHash latest.json -Algorithm SHA256).Hash.ToLower()
+          @(
+            "$installerSha *$env:INSTALLER_NAME"
+            "$manifestSha *latest.json"
+          ) | Set-Content -Path SHA256SUMS.txt -Encoding utf8
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $installerPath = Join-Path 'installer_output' $env:INSTALLER_NAME
+
+          & gh release view $env:RELEASE_TAG *> $null
+          if ($LASTEXITCODE -eq 0) {
+            & gh release upload $env:RELEASE_TAG $installerPath latest.json SHA256SUMS.txt --clobber
+            & gh release edit $env:RELEASE_TAG --title "路径提取器 $env:APP_VERSION" --notes-file release-notes.md
+          } else {
+            & gh release create $env:RELEASE_TAG $installerPath latest.json SHA256SUMS.txt --title "路径提取器 $env:APP_VERSION" --notes-file release-notes.md
+          }

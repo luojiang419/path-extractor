@@ -1,0 +1,9 @@
+*
+!.gitignore
+!README.md
+!.github/
+!.github/**
+!installer/
+!installer/**
+!path_extractor_browser/
+!path_extractor_browser/**
