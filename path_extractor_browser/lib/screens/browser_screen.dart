@@ -15,6 +15,7 @@ import '../services/path_service.dart';
 import '../widgets/breadcrumb_nav.dart';
 import '../widgets/drop_zone.dart';
 import '../widgets/file_list_item.dart' show FileListItem, fileEntryIconData;
+import '../widgets/media_thumbnail.dart';
 import '../widgets/network_drive_dialog.dart';
 
 class BrowserScreen extends ConsumerStatefulWidget {
@@ -969,6 +970,17 @@ class _GridItemState extends State<_GridItem> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final (icon, color) = fileEntryIconData(widget.entry.type);
+    final preview = isMediaFileEntry(widget.entry)
+        ? MediaThumbnail(
+            entry: widget.entry,
+            width: 72,
+            height: 72,
+            borderRadius: BorderRadius.circular(12),
+            fallbackIcon: icon,
+            fallbackColor: color,
+            fallbackIconSize: 32,
+          )
+        : Icon(icon, color: color, size: 40);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -995,8 +1007,12 @@ class _GridItemState extends State<_GridItem> {
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(icon, color: color, size: 40),
-                    const SizedBox(height: 6),
+                    SizedBox(
+                      width: 72,
+                      height: 72,
+                      child: Center(child: preview),
+                    ),
+                    const SizedBox(height: 8),
                     Text(
                       widget.entry.name,
                       maxLines: 2,

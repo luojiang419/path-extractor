@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/file_entry.dart';
+import 'media_thumbnail.dart';
 
 class FileListItem extends StatefulWidget {
   const FileListItem({
@@ -103,7 +104,7 @@ class _FileListItemState extends State<FileListItem> {
             ),
             child: Row(
               children: [
-                fileEntryIcon(widget.entry.type),
+                _LeadingEntryVisual(entry: widget.entry),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -155,6 +156,34 @@ class _FileListItemState extends State<FileListItem> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _LeadingEntryVisual extends StatelessWidget {
+  const _LeadingEntryVisual({required this.entry});
+
+  final FileEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, color) = fileEntryIconData(entry.type);
+
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Center(
+        child: isMediaFileEntry(entry)
+            ? MediaThumbnail(
+                entry: entry,
+                width: 44,
+                height: 44,
+                borderRadius: BorderRadius.circular(8),
+                fallbackIcon: icon,
+                fallbackColor: color,
+              )
+            : fileEntryIcon(entry.type),
       ),
     );
   }

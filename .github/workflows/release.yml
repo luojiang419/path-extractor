@@ -76,11 +76,23 @@ jobs:
         shell: pwsh
         run: choco install innosetup --yes --no-progress
 
+      - name: Install ffmpeg
+        shell: pwsh
+        run: choco install ffmpeg --yes --no-progress
+
       - name: Build installer
         shell: pwsh
         run: |
+          $chocoRoot = if ($env:ChocolateyInstall) { $env:ChocolateyInstall } else { 'C:\ProgramData\chocolatey' }
+          $ffmpegBinary = Get-ChildItem -Path (Join-Path $chocoRoot 'lib') -Filter ffmpeg.exe -Recurse |
+            Where-Object { $_.FullName -match '\\tools\\' } |
+            Select-Object -First 1
+          if (-not $ffmpegBinary) {
+            throw '找不到 Chocolatey 安装的 ffmpeg.exe'
+          }
+
           Set-Location installer
-          .\build_installer.ps1
+          .\build_installer.ps1 -FfmpegDir $ffmpegBinary.Directory.FullName
 
       - name: Generate release assets
         shell: pwsh
