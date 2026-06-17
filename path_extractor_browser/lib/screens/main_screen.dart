@@ -20,6 +20,7 @@ class MainScreen extends ConsumerStatefulWidget {
 
 class _MainScreenState extends ConsumerState<MainScreen> {
   bool _hasCheckedForUpdates = false;
+  bool _isCheckingForUpdates = false;
 
   @override
   void initState() {
@@ -27,7 +28,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_hasCheckedForUpdates) return;
       _hasCheckedForUpdates = true;
-      unawaited(_checkForUpdates());
+      unawaited(_checkForUpdates(userInitiated: false));
     });
   }
 
@@ -36,22 +37,64 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('路径提取器'),
-        actions: const [ThemeToggle()],
+        actions: [
+          const ThemeToggle(),
+          IconButton(
+            key: const Key('check-update-button'),
+            tooltip: '检查更新',
+            onPressed: _isCheckingForUpdates
+                ? null
+                : () => unawaited(_checkForUpdates(userInitiated: true)),
+            icon: _isCheckingForUpdates
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2.2),
+                  )
+                : const Icon(Icons.system_update_alt),
+          ),
+        ],
       ),
       body: const ToastOverlay(child: BrowserScreen()),
     );
   }
 
-  Future<void> _checkForUpdates() async {
+  Future<void> _checkForUpdates({required bool userInitiated}) async {
+    if (_isCheckingForUpdates) return;
+
+    setState(() {
+      _isCheckingForUpdates = true;
+    });
+
     try {
       final updateService = ref.read(updateServiceProvider);
       final result = await updateService.checkForUpdate();
-      if (!mounted || result.status != UpdateCheckStatus.updateAvailable) {
+      if (!mounted) {
         return;
       }
 
+      switch (result.status) {
+        case UpdateCheckStatus.upToDate:
+          if (userInitiated) {
+            ref.read(toastProvider.notifier).showSuccess('当前已是最新版本');
+          }
+          return;
+        case UpdateCheckStatus.unavailable:
+          if (userInitiated) {
+            ref.read(toastProvider.notifier).showError('检查更新失败，请稍后重试');
+          }
+          return;
+        case UpdateCheckStatus.updateAvailable:
+          break;
+      }
+
       final manifest = result.manifest;
-      if (manifest == null) return;
+      if (manifest == null) {
+        if (userInitiated) {
+          ref.read(toastProvider.notifier).showError('检查更新失败，请稍后重试');
+        }
+        return;
+      }
 
       final shouldDownload = await showDialog<bool>(
         context: context,
@@ -93,7 +136,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
       if (shouldDownload != true || !mounted) return;
       await _downloadAndInstall(updateService, manifest);
     } on Object {
-      // 启动阶段的更新检查失败时静默忽略，不影响主界面可用。
+      if (mounted && userInitiated) {
+        ref.read(toastProvider.notifier).showError('检查更新失败，请稍后重试');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingForUpdates = false;
+        });
+      }
     }
   }
 

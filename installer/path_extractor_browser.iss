@@ -1,6 +1,6 @@
 #define MyAppName "路径提取器"
 #ifndef MyAppVersion
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.0.3"
 #endif
 #define MyAppPublisher "路径提取器"
 #define MyAppExeName "path_extractor_browser.exe"

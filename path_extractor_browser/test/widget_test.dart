@@ -13,5 +13,6 @@ void main() {
     expect(find.text('无限模式'), findsNothing);
     expect(find.byKey(const Key('path-input')), findsOneWidget);
     expect(find.byKey(const Key('filter-input')), findsOneWidget);
+    expect(find.byKey(const Key('check-update-button')), findsOneWidget);
   });
 }
