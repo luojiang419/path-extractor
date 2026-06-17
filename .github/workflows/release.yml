@@ -44,13 +44,14 @@ jobs:
           }
 
           $installerName = "路径提取器-安装包-$appVersion.exe"
-          $installerNameEncoded = [System.Uri]::EscapeDataString($installerName)
-          $installerUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$releaseTag/$installerNameEncoded"
+          $installerAssetName = "path-extractor-installer-$appVersion.exe"
+          $installerUrl = "https://github.com/$env:GITHUB_REPOSITORY/releases/download/$releaseTag/$installerAssetName"
 
           Add-Content $env:GITHUB_ENV "APP_VERSION=$appVersion"
           Add-Content $env:GITHUB_ENV "APP_BUILD=$appBuild"
           Add-Content $env:GITHUB_ENV "RELEASE_TAG=$releaseTag"
           Add-Content $env:GITHUB_ENV "INSTALLER_NAME=$installerName"
+          Add-Content $env:GITHUB_ENV "INSTALLER_ASSET_NAME=$installerAssetName"
           Add-Content $env:GITHUB_ENV "INSTALLER_URL=$installerUrl"
 
       - name: Install dependencies
@@ -88,19 +89,23 @@ jobs:
           if (-not (Test-Path $installerPath)) {
             throw "找不到安装包：$installerPath"
           }
+          $releaseInstallerPath = Join-Path $env:RUNNER_TEMP $env:INSTALLER_ASSET_NAME
+          Copy-Item $installerPath $releaseInstallerPath -Force
 
           $previousTag = git tag --sort=-version:refname | Where-Object { $_ -ne $env:RELEASE_TAG } | Select-Object -First 1
           if ($previousTag) {
-            $notes = git log "$previousTag..HEAD" --pretty=format:"- %s"
+            $notesLines = @(git log "$previousTag..HEAD" --pretty=format:"- %s")
           } else {
-            $notes = git log --pretty=format:"- %s"
+            $notesLines = @(git log --pretty=format:"- %s")
           }
-          if ([string]::IsNullOrWhiteSpace($notes)) {
-            $notes = '初始发布'
+          $notesLines = $notesLines | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+          if (-not $notesLines -or $notesLines.Count -eq 0) {
+            $notesLines = @('初始发布')
           }
+          $notes = [string]::Join("`n", $notesLines)
           Set-Content -Path release-notes.md -Value $notes -Encoding utf8
 
-          $installerSha = (Get-FileHash $installerPath -Algorithm SHA256).Hash.ToLower()
+          $installerSha = (Get-FileHash $releaseInstallerPath -Algorithm SHA256).Hash.ToLower()
           $publishedAt = (Get-Date).ToUniversalTime().ToString('o')
           $manifest = [ordered]@{
             version = $env:APP_VERSION
@@ -116,7 +121,7 @@ jobs:
 
           $manifestSha = (Get-FileHash latest.json -Algorithm SHA256).Hash.ToLower()
           @(
-            "$installerSha *$env:INSTALLER_NAME"
+            "$installerSha *$env:INSTALLER_ASSET_NAME"
             "$manifestSha *latest.json"
           ) | Set-Content -Path SHA256SUMS.txt -Encoding utf8
 
@@ -125,12 +130,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: |
-          $installerPath = Join-Path 'installer_output' $env:INSTALLER_NAME
+          $releaseInstallerPath = Join-Path $env:RUNNER_TEMP $env:INSTALLER_ASSET_NAME
 
           & gh release view $env:RELEASE_TAG *> $null
           if ($LASTEXITCODE -eq 0) {
-            & gh release upload $env:RELEASE_TAG $installerPath latest.json SHA256SUMS.txt --clobber
+            $release = & gh release view $env:RELEASE_TAG --json assets | ConvertFrom-Json
+            foreach ($asset in $release.assets) {
+              if ($asset.name -like '*.exe' -and $asset.name -ne $env:INSTALLER_ASSET_NAME) {
+                & gh release delete-asset $env:RELEASE_TAG $asset.name --yes
+              }
+            }
+            & gh release upload $env:RELEASE_TAG $releaseInstallerPath latest.json SHA256SUMS.txt --clobber
             & gh release edit $env:RELEASE_TAG --title "路径提取器 $env:APP_VERSION" --notes-file release-notes.md
           } else {
-            & gh release create $env:RELEASE_TAG $installerPath latest.json SHA256SUMS.txt --title "路径提取器 $env:APP_VERSION" --notes-file release-notes.md
+            & gh release create $env:RELEASE_TAG $releaseInstallerPath latest.json SHA256SUMS.txt --title "路径提取器 $env:APP_VERSION" --notes-file release-notes.md
           }
