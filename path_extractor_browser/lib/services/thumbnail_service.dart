@@ -176,7 +176,7 @@ class ThumbnailServiceImpl implements ThumbnailService {
 
   Future<String?> _resolveFfmpegPath() {
     return _resolvedFfmpegFuture ??= (_ffmpegLocator != null
-        ? _ffmpegLocator!()
+        ? _ffmpegLocator()
         : _locateFfmpeg());
   }
 

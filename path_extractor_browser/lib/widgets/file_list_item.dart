@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../models/file_entry.dart';
+import '../theme/app_theme.dart';
+import 'animated_hover_surface.dart';
 import 'media_thumbnail.dart';
 
 class FileListItem extends StatefulWidget {
@@ -24,8 +26,6 @@ class FileListItem extends StatefulWidget {
 }
 
 class _FileListItemState extends State<FileListItem> {
-  bool _isHovered = false;
-
   void _showContextMenu(BuildContext context, Offset globalPosition) async {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final position = RelativeRect.fromRect(
@@ -81,82 +81,68 @@ class _FileListItemState extends State<FileListItem> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onSecondaryTapUp: (details) =>
-            _showContextMenu(context, details.globalPosition),
-        child: InkWell(
-          onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
-            color: widget.isHighlighted
-                ? colorScheme.primaryContainer
-                : _isHovered
-                ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
-                : Colors.transparent,
-            padding: const EdgeInsets.only(
-              left: 16,
-              right: 4,
-              top: 6,
-              bottom: 6,
-            ),
-            child: Row(
-              children: [
-                _LeadingEntryVisual(entry: widget.entry),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.entry.name,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        widget.entry.path,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+    return AnimatedHoverSurface(
+      isHighlighted: widget.isHighlighted,
+      onTap: widget.onTap,
+      onSecondaryTapUp: (details) =>
+          _showContextMenu(context, details.globalPosition),
+      padding: const EdgeInsets.only(left: 14, right: 4, top: 6, bottom: 6),
+      borderRadius: BorderRadius.circular(12),
+      hoverColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.40),
+      builder: (context, isHovered) {
+        return Row(
+          children: [
+            _LeadingEntryVisual(entry: widget.entry),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.entry.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                AnimatedOpacity(
-                  opacity: _isHovered ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 150),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Tooltip(
-                        message: '复制路径',
-                        child: IconButton(
-                          icon: const Icon(Icons.copy, size: 16),
-                          onPressed: widget.onCopyPath,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                      if (widget.onDelete != null)
-                        Tooltip(
-                          message: '移除',
-                          child: IconButton(
-                            icon: const Icon(Icons.close, size: 16),
-                            onPressed: widget.onDelete,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                    ],
+                  Text(
+                    widget.entry.path,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ),
-      ),
+            AnimatedOpacity(
+              opacity: isHovered ? 1.0 : 0.0,
+              duration: AppMotion.fast,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Tooltip(
+                    message: '复制路径',
+                    child: IconButton(
+                      icon: const Icon(Icons.copy, size: 16),
+                      onPressed: widget.onCopyPath,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  if (widget.onDelete != null)
+                    Tooltip(
+                      message: '移除',
+                      child: IconButton(
+                        icon: const Icon(Icons.close, size: 16),
+                        onPressed: widget.onDelete,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -168,18 +154,31 @@ class _LeadingEntryVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final (icon, color) = fileEntryIconData(entry.type);
 
-    return SizedBox(
+    return AnimatedContainer(
+      duration: AppMotion.normal,
       width: 44,
       height: 44,
+      decoration: BoxDecoration(
+        color: isMediaFileEntry(entry)
+            ? Colors.transparent
+            : color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isMediaFileEntry(entry)
+              ? Colors.transparent
+              : colorScheme.outlineVariant.withValues(alpha: 0.30),
+        ),
+      ),
       child: Center(
         child: isMediaFileEntry(entry)
             ? MediaThumbnail(
                 entry: entry,
                 width: 44,
                 height: 44,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(12),
                 fallbackIcon: icon,
                 fallbackColor: color,
               )

@@ -12,9 +12,12 @@ import '../providers/infinite_list_provider.dart';
 import '../services/clipboard_service.dart';
 import '../services/network_drive_service.dart';
 import '../services/path_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/animated_hover_surface.dart';
 import '../widgets/breadcrumb_nav.dart';
 import '../widgets/drop_zone.dart';
 import '../widgets/file_list_item.dart' show FileListItem, fileEntryIconData;
+import '../widgets/glass_panel.dart';
 import '../widgets/media_thumbnail.dart';
 import '../widgets/network_drive_dialog.dart';
 
@@ -82,6 +85,16 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
     final pathSegments = isInfiniteMode
         ? _infinitePathSegments(infiniteState)
         : _pathService.splitSegments(browserState.currentPath);
+    final activeViewMode = isInfiniteMode
+        ? infiniteState.viewMode
+        : browserState.viewMode;
+    final content = isInfiniteMode
+        ? _buildInfiniteContent(context, infiniteState, infiniteNotifier)
+        : _buildBrowserContent(context, browserState, browserNotifier);
+    final contentKey = ValueKey(
+      '${isInfiniteMode ? 'infinite' : 'browser'}-'
+      '${activeRootView ? 'root' : activeDisplayPath}-${activeViewMode.name}',
+    );
 
     return CallbackShortcuts(
       bindings: {
@@ -111,95 +124,125 @@ class _BrowserScreenState extends ConsumerState<BrowserScreen> {
               infiniteNotifier.enterFromDrop(paths);
             }
           },
-          child: Column(
-            children: [
-              _NavBar(
-                pathSegments: pathSegments,
-                isRootView: activeRootView,
-                canGoUp: !activeRootView,
-                onBack: () {
-                  if (isInfiniteMode) {
-                    infiniteNotifier.navigateUp();
-                  } else {
-                    browserNotifier.navigateUp();
-                  }
-                },
-                onHome: () {
-                  if (isInfiniteMode) {
-                    infiniteNotifier.navigateToRoot();
-                  } else {
-                    browserNotifier.navigateToRoot();
-                  }
-                },
-                onSegmentTap: (index) {
-                  if (isInfiniteMode) {
-                    infiniteNotifier.navigateToSegment(index);
-                  } else {
-                    browserNotifier.navigateToSegment(index);
-                  }
-                },
-                onAddNetwork: () =>
-                    _showAddNetworkDialog(context, browserNotifier),
-                isInfiniteMode: isInfiniteMode,
-              ),
-              const Divider(height: 1),
-              _Toolbar(
-                pathController: _pathController,
-                pathFocusNode: _pathFocusNode,
-                filterFocusNode: _filterFocusNode,
-                filterQuery: activeFilter,
-                viewMode: isInfiniteMode
-                    ? infiniteState.viewMode
-                    : browserState.viewMode,
-                sortField: isInfiniteMode
-                    ? infiniteState.sortField
-                    : browserState.sortField,
-                sortOrder: isInfiniteMode
-                    ? infiniteState.sortOrder
-                    : browserState.sortOrder,
-                searchController: _searchController,
-                onPathSubmitted: (value) => _submitPath(
-                  value: value,
-                  isInfiniteMode: isInfiniteMode,
-                  browserNotifier: browserNotifier,
-                  infiniteNotifier: infiniteNotifier,
-                ),
-                onFilterChanged: isInfiniteMode
-                    ? infiniteNotifier.setFilter
-                    : browserNotifier.setFilter,
-                onSortField: isInfiniteMode
-                    ? infiniteNotifier.setSortField
-                    : browserNotifier.setSortField,
-                onViewMode: isInfiniteMode
-                    ? infiniteNotifier.setViewMode
-                    : browserNotifier.setViewMode,
-                isInfiniteMode: isInfiniteMode,
-                entryCount: infiniteState.rootEntries.length,
-                onPickFiles: isInfiniteMode
-                    ? () => _pickFiles(context, infiniteNotifier)
-                    : null,
-                onPickFolder: isInfiniteMode
-                    ? () => _pickFolder(context, infiniteNotifier)
-                    : null,
-                onClearAll: isInfiniteMode
-                    ? () => _showClearDialog(context, infiniteNotifier)
-                    : null,
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: isInfiniteMode
-                    ? _buildInfiniteContent(
-                        context,
-                        infiniteState,
-                        infiniteNotifier,
-                      )
-                    : _buildBrowserContent(
-                        context,
-                        browserState,
-                        browserNotifier,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+            child: Column(
+              children: [
+                GlassPanel(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 8),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _NavBar(
+                        pathSegments: pathSegments,
+                        isRootView: activeRootView,
+                        canGoUp: !activeRootView,
+                        onBack: () {
+                          if (isInfiniteMode) {
+                            infiniteNotifier.navigateUp();
+                          } else {
+                            browserNotifier.navigateUp();
+                          }
+                        },
+                        onHome: () {
+                          if (isInfiniteMode) {
+                            infiniteNotifier.navigateToRoot();
+                          } else {
+                            browserNotifier.navigateToRoot();
+                          }
+                        },
+                        onSegmentTap: (index) {
+                          if (isInfiniteMode) {
+                            infiniteNotifier.navigateToSegment(index);
+                          } else {
+                            browserNotifier.navigateToSegment(index);
+                          }
+                        },
+                        onAddNetwork: () =>
+                            _showAddNetworkDialog(context, browserNotifier),
+                        isInfiniteMode: isInfiniteMode,
                       ),
-              ),
-            ],
+                      const SizedBox(height: 6),
+                      _Toolbar(
+                        pathController: _pathController,
+                        pathFocusNode: _pathFocusNode,
+                        filterFocusNode: _filterFocusNode,
+                        filterQuery: activeFilter,
+                        viewMode: activeViewMode,
+                        sortField: isInfiniteMode
+                            ? infiniteState.sortField
+                            : browserState.sortField,
+                        sortOrder: isInfiniteMode
+                            ? infiniteState.sortOrder
+                            : browserState.sortOrder,
+                        searchController: _searchController,
+                        onPathSubmitted: (value) => _submitPath(
+                          value: value,
+                          isInfiniteMode: isInfiniteMode,
+                          browserNotifier: browserNotifier,
+                          infiniteNotifier: infiniteNotifier,
+                        ),
+                        onFilterChanged: isInfiniteMode
+                            ? infiniteNotifier.setFilter
+                            : browserNotifier.setFilter,
+                        onSortField: isInfiniteMode
+                            ? infiniteNotifier.setSortField
+                            : browserNotifier.setSortField,
+                        onViewMode: isInfiniteMode
+                            ? infiniteNotifier.setViewMode
+                            : browserNotifier.setViewMode,
+                        isInfiniteMode: isInfiniteMode,
+                        entryCount: infiniteState.rootEntries.length,
+                        onPickFiles: isInfiniteMode
+                            ? () => _pickFiles(context, infiniteNotifier)
+                            : null,
+                        onPickFolder: isInfiniteMode
+                            ? () => _pickFolder(context, infiniteNotifier)
+                            : null,
+                        onClearAll: isInfiniteMode
+                            ? () => _showClearDialog(context, infiniteNotifier)
+                            : null,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: GlassPanel(
+                    borderRadius: BorderRadius.circular(18),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(18),
+                      child: AnimatedSwitcher(
+                        duration: AppMotion.normal,
+                        switchInCurve: AppMotion.standard,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          final offset =
+                              Tween<Offset>(
+                                begin: const Offset(0, 0.018),
+                                end: Offset.zero,
+                              ).animate(
+                                CurvedAnimation(
+                                  parent: animation,
+                                  curve: AppMotion.standard,
+                                ),
+                              );
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: offset,
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: KeyedSubtree(key: contentKey, child: content),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -583,48 +626,89 @@ class _NavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      height: 40,
       child: Row(
         children: [
           IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: '返回上一级',
             onPressed: canGoUp ? onBack : null,
+            visualDensity: VisualDensity.compact,
           ),
           IconButton(
-            icon: Icon(
-              isInfiniteMode ? Icons.inventory_2_outlined : Icons.storage,
+            icon: AnimatedSwitcher(
+              duration: AppMotion.fast,
+              child: Icon(
+                isInfiniteMode ? Icons.inventory_2_outlined : Icons.storage,
+                key: ValueKey(isInfiniteMode),
+              ),
             ),
             tooltip: isInfiniteMode ? '已拖入项目根列表' : '所有磁盘',
             onPressed: isRootView ? null : onHome,
+            visualDensity: VisualDensity.compact,
           ),
+          const SizedBox(width: 4),
           Expanded(
-            child: isRootView
-                ? Text(
-                    isInfiniteMode ? '已拖入项目' : '我的电脑',
-                    style: Theme.of(context).textTheme.titleSmall,
+            child: AnimatedSwitcher(
+              duration: AppMotion.normal,
+              switchInCurve: AppMotion.standard,
+              child: Align(
+                key: ValueKey(
+                  isRootView ? 'root-$isInfiniteMode' : pathSegments.join('/'),
+                ),
+                alignment: Alignment.centerLeft,
+                child: isRootView
+                    ? Text(
+                        isInfiniteMode ? '已拖入项目' : '我的电脑',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : BreadcrumbNav(
+                        pathSegments: pathSegments,
+                        onTap: onSegmentTap,
+                      ),
+              ),
+            ),
+          ),
+          AnimatedSwitcher(
+            duration: AppMotion.normal,
+            child: isInfiniteMode
+                ? Container(
+                    key: const ValueKey('infinite-mode-chip'),
+                    margin: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colorScheme.primary.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: colorScheme.primary.withValues(alpha: 0.18),
+                      ),
+                    ),
+                    child: Text(
+                      '按 Esc 退出',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.primary,
+                      ),
+                    ),
                   )
-                : BreadcrumbNav(
-                    pathSegments: pathSegments,
-                    onTap: onSegmentTap,
+                : TextButton.icon(
+                    key: const ValueKey('add-network-button'),
+                    onPressed: onAddNetwork,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('添加网络位置'),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                    ),
                   ),
           ),
-          if (isInfiniteMode)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: Text(
-                '按 Esc 退出',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            )
-          else
-            TextButton.icon(
-              onPressed: onAddNetwork,
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('添加网络位置'),
-              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
-            ),
         ],
       ),
     );
@@ -673,129 +757,190 @@ class _Toolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
-        children: [
-          if (isInfiniteMode) ...[
-            Row(
-              children: [
-                FilledButton.tonalIcon(
-                  onPressed: onPickFiles,
-                  icon: const Icon(Icons.add, size: 16),
-                  label: const Text('添加文件'),
-                  style: FilledButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton.tonalIcon(
-                  onPressed: onPickFolder,
-                  icon: const Icon(Icons.create_new_folder_outlined, size: 16),
-                  label: const Text('添加文件夹'),
-                  style: FilledButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '共 $entryCount 个根条目',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(width: 8),
-                TextButton(onPressed: onClearAll, child: const Text('清空列表')),
-              ],
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: AnimatedSize(
+        duration: AppMotion.normal,
+        curve: AppMotion.standard,
+        alignment: Alignment.topCenter,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedSwitcher(
+              duration: AppMotion.normal,
+              switchInCurve: AppMotion.standard,
+              child: isInfiniteMode
+                  ? Padding(
+                      key: const ValueKey('infinite-actions'),
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: _buildInfiniteActions(context),
+                    )
+                  : const SizedBox.shrink(key: ValueKey('browser-actions')),
             ),
-            const SizedBox(height: 6),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return _buildResponsiveControls(context, constraints);
+              },
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfiniteActions(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          FilledButton.tonalIcon(
+            onPressed: onPickFiles,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('添加文件'),
+            style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: onPickFolder,
+            icon: const Icon(Icons.create_new_folder_outlined, size: 16),
+            label: const Text('添加文件夹'),
+            style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+          ),
+          Text(
+            '共 $entryCount 个根条目',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          TextButton(onPressed: onClearAll, child: const Text('清空列表')),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResponsiveControls(
+    BuildContext context,
+    BoxConstraints constraints,
+  ) {
+    final compact = constraints.maxWidth < 760;
+    final pathField = _buildPathField();
+    final filterField = _buildFilterField();
+    final controls = _buildViewControls();
+
+    if (compact) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          pathField,
+          const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                flex: 5,
-                child: SizedBox(
-                  height: 36,
-                  child: TextField(
-                    key: const Key('path-input'),
-                    controller: pathController,
-                    focusNode: pathFocusNode,
-                    onSubmitted: onPathSubmitted,
-                    textInputAction: TextInputAction.go,
-                    decoration: InputDecoration(
-                      hintText: '输入路径后回车',
-                      prefixIcon: const Icon(
-                        Icons.drive_folder_upload,
-                        size: 18,
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-              ),
+              Expanded(child: filterField),
               const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: SizedBox(
-                  height: 36,
-                  child: TextField(
-                    key: const Key('filter-input'),
-                    controller: searchController,
-                    focusNode: filterFocusNode,
-                    onChanged: onFilterChanged,
-                    decoration: InputDecoration(
-                      hintText: '筛选文件名...',
-                      prefixIcon: const Icon(Icons.search, size: 18),
-                      suffixIcon: filterQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 16),
-                              onPressed: () {
-                                searchController.clear();
-                                onFilterChanged('');
-                              },
-                            )
-                          : null,
-                      contentPadding: EdgeInsets.zero,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      isDense: true,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              _SortButton(
-                sortField: sortField,
-                sortOrder: sortOrder,
-                onSortField: onSortField,
-              ),
-              const SizedBox(width: 4),
-              SegmentedButton<ViewMode>(
-                segments: const [
-                  ButtonSegment(
-                    value: ViewMode.list,
-                    icon: Icon(Icons.view_list, size: 18),
-                    tooltip: '列表视图',
-                  ),
-                  ButtonSegment(
-                    value: ViewMode.grid,
-                    icon: Icon(Icons.grid_view, size: 18),
-                    tooltip: '缩略图视图',
-                  ),
-                ],
-                selected: {viewMode},
-                onSelectionChanged: (selection) => onViewMode(selection.first),
-                style: const ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
-              ),
+              Flexible(child: FittedBox(child: controls)),
             ],
           ),
         ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(flex: 5, child: pathField),
+        const SizedBox(width: 8),
+        Expanded(flex: 2, child: filterField),
+        const SizedBox(width: 8),
+        controls,
+      ],
+    );
+  }
+
+  Widget _buildPathField() {
+    return SizedBox(
+      height: 38,
+      child: TextField(
+        key: const Key('path-input'),
+        controller: pathController,
+        focusNode: pathFocusNode,
+        onSubmitted: onPathSubmitted,
+        textInputAction: TextInputAction.go,
+        decoration: _inputDecoration(
+          hintText: '输入路径后回车',
+          prefixIcon: Icons.drive_folder_upload,
+        ),
       ),
+    );
+  }
+
+  Widget _buildFilterField() {
+    return SizedBox(
+      height: 38,
+      child: TextField(
+        key: const Key('filter-input'),
+        controller: searchController,
+        focusNode: filterFocusNode,
+        onChanged: onFilterChanged,
+        decoration: _inputDecoration(
+          hintText: '筛选文件名...',
+          prefixIcon: Icons.search,
+          suffixIcon: filterQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 16),
+                  onPressed: () {
+                    searchController.clear();
+                    onFilterChanged('');
+                  },
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildViewControls() {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _SortButton(
+          sortField: sortField,
+          sortOrder: sortOrder,
+          onSortField: onSortField,
+        ),
+        const SizedBox(width: 4),
+        SegmentedButton<ViewMode>(
+          segments: const [
+            ButtonSegment(
+              value: ViewMode.list,
+              icon: Icon(Icons.view_list, size: 18),
+              tooltip: '列表视图',
+            ),
+            ButtonSegment(
+              value: ViewMode.grid,
+              icon: Icon(Icons.grid_view, size: 18),
+              tooltip: '缩略图视图',
+            ),
+          ],
+          selected: {viewMode},
+          onSelectionChanged: (selection) => onViewMode(selection.first),
+          style: const ButtonStyle(
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ),
+      ],
+    );
+  }
+
+  InputDecoration _inputDecoration({
+    required String hintText,
+    required IconData prefixIcon,
+    Widget? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hintText,
+      prefixIcon: Icon(prefixIcon, size: 18),
+      suffixIcon: suffixIcon,
+      prefixIconConstraints: const BoxConstraints(minWidth: 40),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
     );
   }
 }
@@ -914,8 +1059,6 @@ class _GridItem extends StatefulWidget {
 }
 
 class _GridItemState extends State<_GridItem> {
-  bool _isHovered = false;
-
   void _showContextMenu(BuildContext context, Offset globalPosition) async {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final position = RelativeRect.fromRect(
@@ -980,101 +1123,113 @@ class _GridItemState extends State<_GridItem> {
             fallbackColor: color,
             fallbackIconSize: 32,
           )
-        : Icon(icon, color: color, size: 40);
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onSecondaryTapUp: (details) =>
-            _showContextMenu(context, details.globalPosition),
-        child: InkWell(
-          onTap: widget.onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
+        : Container(
+            width: 72,
+            height: 72,
             decoration: BoxDecoration(
-              color: widget.isHighlighted
-                  ? colorScheme.primaryContainer
-                  : _isHovered
-                  ? colorScheme.primaryContainer.withValues(alpha: 0.5)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.28),
+              ),
             ),
-            padding: const EdgeInsets.all(8),
-            child: Stack(
+            child: Icon(icon, color: color, size: 40),
+          );
+
+    return AnimatedHoverSurface(
+      isHighlighted: widget.isHighlighted,
+      onTap: widget.onTap,
+      onSecondaryTapUp: (details) =>
+          _showContextMenu(context, details.globalPosition),
+      padding: const EdgeInsets.all(8),
+      borderRadius: BorderRadius.circular(14),
+      builder: (context, isHovered) {
+        return Stack(
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 72,
-                      height: 72,
-                      child: Center(child: preview),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      widget.entry.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                  ],
-                ),
-                Positioned(
-                  top: 0,
-                  right: 0,
-                  child: AnimatedOpacity(
-                    opacity: _isHovered ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 150),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Tooltip(
-                          message: '复制路径',
-                          child: InkWell(
-                            onTap: widget.onCopyPath,
-                            borderRadius: BorderRadius.circular(4),
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface.withValues(
-                                  alpha: 0.85,
-                                ),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Icon(Icons.copy, size: 14),
-                            ),
-                          ),
-                        ),
-                        if (widget.onDelete != null) ...[
-                          const SizedBox(width: 4),
-                          Tooltip(
-                            message: '移除',
-                            child: InkWell(
-                              onTap: widget.onDelete,
-                              borderRadius: BorderRadius.circular(4),
-                              child: Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: BoxDecoration(
-                                  color: colorScheme.surface.withValues(
-                                    alpha: 0.85,
-                                  ),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Icon(Icons.close, size: 14),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                SizedBox(width: 72, height: 72, child: Center(child: preview)),
+                const SizedBox(height: 8),
+                AnimatedDefaultTextStyle(
+                  duration: AppMotion.fast,
+                  style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                    fontSize: 11,
+                    fontWeight: isHovered ? FontWeight.w700 : FontWeight.w500,
+                    color: colorScheme.onSurface,
+                  ),
+                  child: Text(
+                    widget.entry.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],
             ),
+            Positioned(
+              top: 0,
+              right: 0,
+              child: AnimatedOpacity(
+                opacity: isHovered ? 1.0 : 0.0,
+                duration: AppMotion.fast,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _GridQuickAction(
+                      tooltip: '复制路径',
+                      icon: Icons.copy,
+                      onTap: widget.onCopyPath,
+                    ),
+                    if (widget.onDelete != null) ...[
+                      const SizedBox(width: 4),
+                      _GridQuickAction(
+                        tooltip: '移除',
+                        icon: Icons.close,
+                        onTap: widget.onDelete,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _GridQuickAction extends StatelessWidget {
+  const _GridQuickAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(7),
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: colorScheme.surface.withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(
+              color: colorScheme.outlineVariant.withValues(alpha: 0.34),
+            ),
           ),
+          child: Icon(icon, size: 14),
         ),
       ),
     );
@@ -1210,8 +1365,6 @@ class _NetworkDriveItem extends StatefulWidget {
 }
 
 class _NetworkDriveItemState extends State<_NetworkDriveItem> {
-  bool _isHovered = false;
-
   void _showContextMenu(BuildContext context, Offset pos) async {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final position = RelativeRect.fromRect(
@@ -1253,87 +1406,85 @@ class _NetworkDriveItemState extends State<_NetworkDriveItem> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onSecondaryTapUp: (details) =>
-            _showContextMenu(context, details.globalPosition),
-        child: InkWell(
-          onTap: widget.onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 100),
-            color: _isHovered
-                ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.5)
-                : Colors.transparent,
-            padding: const EdgeInsets.only(
-              left: 16,
-              right: 4,
-              top: 8,
-              bottom: 8,
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.lan, color: colorScheme.primary, size: 24),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.entry.label,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        widget.entry.address,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      if (widget.entry.username != null)
-                        Text(
-                          '用户：${widget.entry.username}',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: colorScheme.outline,
-                          ),
-                        ),
-                    ],
-                  ),
+    return AnimatedHoverSurface(
+      onTap: widget.onTap,
+      onSecondaryTapUp: (details) =>
+          _showContextMenu(context, details.globalPosition),
+      padding: const EdgeInsets.only(left: 14, right: 4, top: 8, bottom: 8),
+      borderRadius: BorderRadius.circular(12),
+      hoverColor: colorScheme.surfaceContainerHighest.withValues(alpha: 0.40),
+      builder: (context, isHovered) {
+        return Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: colorScheme.primary.withValues(alpha: 0.16),
                 ),
-                AnimatedOpacity(
-                  opacity: _isHovered ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 150),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Tooltip(
-                        message: '复制路径',
-                        child: IconButton(
-                          icon: const Icon(Icons.copy, size: 16),
-                          onPressed: widget.onCopy,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                      Tooltip(
-                        message: '移除',
-                        child: IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 16),
-                          onPressed: widget.onRemove,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
+              child: Icon(Icons.lan, color: colorScheme.primary, size: 24),
             ),
-          ),
-        ),
-      ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.entry.label,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    widget.entry.address,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (widget.entry.username != null)
+                    Text(
+                      '用户：${widget.entry.username}',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: colorScheme.outline,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            AnimatedOpacity(
+              opacity: isHovered ? 1.0 : 0.0,
+              duration: AppMotion.fast,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Tooltip(
+                    message: '复制路径',
+                    child: IconButton(
+                      icon: const Icon(Icons.copy, size: 16),
+                      onPressed: widget.onCopy,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  Tooltip(
+                    message: '移除',
+                    child: IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 16),
+                      onPressed: widget.onRemove,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -1347,24 +1498,46 @@ class _InfiniteEmptyView extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.cloud_upload_outlined,
-            size: 64,
-            color: colorScheme.outline,
-          ),
-          const SizedBox(height: 16),
-          Text('将文件或文件夹拖拽到此处', style: textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text('或使用上方按钮添加文件/文件夹', style: textTheme.bodySmall),
-          const SizedBox(height: 4),
-          Text(
-            '点击文件夹可继续浏览，按 Esc 返回普通浏览器',
-            style: textTheme.bodySmall?.copyWith(color: colorScheme.outline),
-          ),
-        ],
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.96, end: 1),
+        duration: AppMotion.slow,
+        curve: AppMotion.standard,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: Transform.scale(scale: value, child: child),
+          );
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 82,
+              height: 82,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer.withValues(alpha: 0.42),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: colorScheme.primary.withValues(alpha: 0.12),
+                ),
+              ),
+              child: Icon(
+                Icons.cloud_upload_outlined,
+                size: 42,
+                color: colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('将文件或文件夹拖拽到此处', style: textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text('或使用上方按钮添加文件/文件夹', style: textTheme.bodySmall),
+            const SizedBox(height: 4),
+            Text(
+              '点击文件夹可继续浏览，按 Esc 返回普通浏览器',
+              style: textTheme.bodySmall?.copyWith(color: colorScheme.outline),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1377,10 +1550,34 @@ class _EmptyFolderView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final message = filterQuery.isEmpty ? '此文件夹为空' : '没有匹配的文件';
+
     return Center(
-      child: Text(
-        filterQuery.isEmpty ? '此文件夹为空' : '没有匹配的文件',
-        style: Theme.of(context).textTheme.bodyMedium,
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.96, end: 1),
+        duration: AppMotion.slow,
+        curve: AppMotion.standard,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: Transform.scale(scale: value, child: child),
+          );
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              filterQuery.isEmpty
+                  ? Icons.folder_open_outlined
+                  : Icons.manage_search,
+              size: 48,
+              color: colorScheme.outline,
+            ),
+            const SizedBox(height: 12),
+            Text(message, style: Theme.of(context).textTheme.bodyMedium),
+          ],
+        ),
       ),
     );
   }
@@ -1393,14 +1590,45 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.lock_outline, size: 48),
-          const SizedBox(height: 12),
-          Text(message),
-        ],
+      child: TweenAnimationBuilder<double>(
+        tween: Tween(begin: 0.96, end: 1),
+        duration: AppMotion.slow,
+        curve: AppMotion.standard,
+        builder: (context, value, child) {
+          return Opacity(
+            opacity: value.clamp(0.0, 1.0),
+            child: Transform.scale(scale: value, child: child),
+          );
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: colorScheme.errorContainer.withValues(alpha: 0.72),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.lock_outline,
+                size: 34,
+                color: colorScheme.onErrorContainer,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              message,
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }

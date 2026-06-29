@@ -25,7 +25,7 @@ void main() {
     var locatorCalls = 0;
     final service = ThumbnailServiceImpl(
       temporaryDirectoryResolver: () async => tempDir,
-      processExecutor: (_, __) async {
+      processExecutor: (_, _) async {
         processCalls++;
         return ProcessResult(0, 0, '', '');
       },
@@ -107,7 +107,7 @@ void main() {
     var processCalls = 0;
     final service = ThumbnailServiceImpl(
       temporaryDirectoryResolver: () async => tempDir,
-      processExecutor: (_, __) async {
+      processExecutor: (_, _) async {
         processCalls++;
         return ProcessResult(0, 0, '', '');
       },
@@ -148,7 +148,7 @@ void main() {
     final missingPath = '${tempDir.path}${Platform.pathSeparator}missing.mp4';
     final service = ThumbnailServiceImpl(
       temporaryDirectoryResolver: () async => tempDir,
-      processExecutor: (_, __) async => ProcessResult(0, 0, '', ''),
+      processExecutor: (_, _) async => ProcessResult(0, 0, '', ''),
       ffmpegLocator: () async => 'ffmpeg',
     );
 

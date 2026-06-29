@@ -13,7 +13,7 @@ https://github.com/luojiang419/path-extractor/releases/latest
 当前发布资产包含：
 
 - Windows 安装包：`path-extractor-installer-*.exe`
-- macOS 压缩包：`path-extractor-macos-*.zip`
+- macOS DMG 安装包：`path-extractor-macos-*.dmg`
 - 校验文件：`SHA256SUMS.txt`
 
 说明：Windows 是当前主要发布目标；macOS 版本已可编译和运行，但当前发布包为本地 ad-hoc 签名，首次打开时可能需要在系统安全设置中允许。

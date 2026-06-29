@@ -142,8 +142,6 @@ class NetworkDriveService {
   }
 
   static ParsedNetworkPath? parseNetworkPath(String rawPath) {
-    if (!Platform.isWindows) return null;
-
     var path = rawPath.trim();
     if (path.isEmpty) return null;
 

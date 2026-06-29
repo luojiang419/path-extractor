@@ -7,6 +7,9 @@ import '../models/update_manifest.dart';
 import '../providers/app_provider.dart';
 import '../providers/update_provider.dart';
 import '../services/update_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/glass_panel.dart';
+import '../widgets/glow_background.dart';
 import '../widgets/theme_toggle.dart';
 import '../widgets/toast_notification.dart';
 import 'browser_screen.dart';
@@ -35,27 +38,23 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('路径提取器'),
-        actions: [
-          const ThemeToggle(),
-          IconButton(
-            key: const Key('check-update-button'),
-            tooltip: '检查更新',
-            onPressed: _isCheckingForUpdates
-                ? null
-                : () => unawaited(_checkForUpdates(userInitiated: true)),
-            icon: _isCheckingForUpdates
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2.2),
-                  )
-                : const Icon(Icons.system_update_alt),
+      backgroundColor: Colors.transparent,
+      body: GlowBackground(
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _AppHeader(
+                isCheckingForUpdates: _isCheckingForUpdates,
+                onCheckForUpdates: _isCheckingForUpdates
+                    ? null
+                    : () => unawaited(_checkForUpdates(userInitiated: true)),
+              ),
+              const Expanded(child: ToastOverlay(child: BrowserScreen())),
+            ],
           ),
-        ],
+        ),
       ),
-      body: const ToastOverlay(child: BrowserScreen()),
     );
   }
 
@@ -224,5 +223,80 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     final hour = local.hour.toString().padLeft(2, '0');
     final minute = local.minute.toString().padLeft(2, '0');
     return '${local.year}-$month-$day $hour:$minute';
+  }
+}
+
+class _AppHeader extends StatelessWidget {
+  const _AppHeader({
+    required this.isCheckingForUpdates,
+    required this.onCheckForUpdates,
+  });
+
+  final bool isCheckingForUpdates;
+  final VoidCallback? onCheckForUpdates;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return GlassPanel(
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      borderRadius: BorderRadius.circular(18),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colorScheme.primary,
+                  colorScheme.tertiary.withValues(alpha: 0.88),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.primary.withValues(alpha: 0.24),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Icon(Icons.alt_route, color: colorScheme.onPrimary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '路径提取器',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const ThemeToggle(),
+          IconButton(
+            key: const Key('check-update-button'),
+            tooltip: '检查更新',
+            onPressed: onCheckForUpdates,
+            icon: AnimatedSwitcher(
+              duration: AppMotion.fast,
+              child: isCheckingForUpdates
+                  ? const SizedBox(
+                      key: ValueKey('checking'),
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2.2),
+                    )
+                  : const Icon(Icons.system_update_alt, key: ValueKey('idle')),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
