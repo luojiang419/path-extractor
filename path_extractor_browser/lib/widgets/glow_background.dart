@@ -49,18 +49,18 @@ class _GlowBackgroundState extends State<GlowBackground>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    final baseColors = isDark
-        ? const [Color(0xFF080C18), Color(0xFF101629), Color(0xFF0B1020)]
-        : const [Color(0xFFEFF4FF), Color(0xFFF8FAFF), Color(0xFFEAF7F4)];
+    final decoration = isDark
+        ? const BoxDecoration(color: Color(0xFF202124))
+        : const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFFEFF4FF), Color(0xFFF8FAFF), Color(0xFFEAF7F4)],
+            ),
+          );
 
     return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: baseColors,
-        ),
-      ),
+      decoration: decoration,
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
@@ -92,7 +92,7 @@ class _GlowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.isEmpty) return;
+    if (size.isEmpty || isDark) return;
 
     final eased = Curves.easeInOut.transform(progress);
     _paintGlow(
